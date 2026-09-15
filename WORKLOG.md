@@ -135,3 +135,23 @@
 - 2026-09-15: 8.4 — Added `occupantsByPlace(places, assignments)`, pre-seeded with every place
   id mapped to `[]` so lookups never need a fallback default, matching the same pattern already
   used in `tallyOccupancy`.
+
+## Stage 9 — Application card redesign
+
+- 2026-09-15: Confirmed adding `humidityTarget` to `Breakdown` and exporting `SCORE_WEIGHTS`
+  from `matching.ts`, rather than the UI re-deriving `likes_damp ? 80 : 45` and hardcoding
+  0.3/0.4/0.3 itself. Both values already existed inside `scorePlace`; this only exposes them,
+  it doesn't compute anything new — but per this stage's own "come back and ask" instruction,
+  confirmed before touching the domain rather than deciding unilaterally.
+- 2026-09-15: Decided the tag-to-violation mapping (`CONDITION_VIOLATION_REASON` in
+  `src/data/labels.ts`) matches against `matching.ts`'s exact Russian reason strings rather than
+  having `evaluate` return a richer `{reason, condition}` shape. Reasoning: stage 8.2 just
+  finished stabilizing `evaluate`'s `violations: string[]` contract as the thing three separate
+  UI features rely on; changing that shape again for one cosmetic tag-marking feature felt like
+  the wrong trade — a small, commented, presentation-side string coupling is cheaper to accept
+  and easier to spot if it ever drifts than reopening the domain's established return type.
+- 2026-09-15: Decided the "collapse to one line" rule (when `globalViolations` is non-empty)
+  only suppresses the automatic candidate list, not the override `<select>` or its result —
+  manual override must keep working even for an expired-deadline ghost, since override already
+  warns rather than blocks everywhere else in the app. Verified in the browser that overriding
+  Кассиан still shows the chosen location's violations as a warning, not a second blocked state.
