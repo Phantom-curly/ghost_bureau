@@ -1,6 +1,7 @@
 import { rankCandidates, tallyOccupancy } from '../domain/matching'
 import type { Ghost, Place } from '../domain/types'
 import { GhostRow } from './GhostRow'
+import { Toolbar } from './Toolbar'
 
 type ApplicationsTabProps = {
   ghosts: Ghost[]
@@ -8,6 +9,8 @@ type ApplicationsTabProps = {
   effectiveAssignments: Array<{ ghost: Ghost; place: Place }>
   overrides: Record<string, string>
   onOverride: (ghostId: string, placeId: string | null) => void
+  onClear: () => void
+  onReset: () => void
   now: Date
 }
 
@@ -17,10 +20,17 @@ export function ApplicationsTab({
   effectiveAssignments,
   overrides,
   onOverride,
+  onClear,
+  onReset,
   now,
 }: ApplicationsTabProps) {
   if (ghosts.length === 0) {
-    return <p className="empty-state">Заявок нет. Нажмите «Сбросить», чтобы вернуть список.</p>
+    return (
+      <>
+        <Toolbar onClear={onClear} onReset={onReset} />
+        <p className="empty-state">Заявок нет. Нажмите «Сбросить», чтобы вернуть список.</p>
+      </>
+    )
   }
 
   const sortedGhosts = [...ghosts].sort(
@@ -29,6 +39,7 @@ export function ApplicationsTab({
 
   return (
     <>
+      <Toolbar onClear={onClear} onReset={onReset} />
       <p className="ordering-note">
         Заявки упорядочены по срочности: чем раньше дедлайн, тем раньше очередь на
         распределение — так же, как их обрабатывает алгоритм.

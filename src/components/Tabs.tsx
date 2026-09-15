@@ -1,12 +1,13 @@
-export type TabId = 'applications' | 'report' | 'worklog'
+export type TabId = 'applications' | 'places' | 'report' | 'worklog'
 
 const TAB_LABELS: Record<TabId, string> = {
   applications: 'Заявки',
+  places: 'Места',
   report: 'Отчёт',
   worklog: 'AI Worklog',
 }
 
-const TAB_ORDER: TabId[] = ['applications', 'report', 'worklog']
+const TAB_ORDER: TabId[] = ['applications', 'places', 'report', 'worklog']
 
 type TabsProps = {
   active: TabId

@@ -5,9 +5,9 @@ import type { Ghost, Place } from './domain/types'
 import { ghosts as seedGhosts } from './data/ghosts'
 import { places } from './data/places'
 import { Banner } from './components/Banner'
-import { Toolbar } from './components/Toolbar'
 import { Tabs, type TabId } from './components/Tabs'
 import { ApplicationsTab } from './components/ApplicationsTab'
+import { PlacesTab } from './components/PlacesTab'
 import { ReportTab } from './components/ReportTab'
 import { WorklogTab } from './components/WorklogTab'
 import './App.css'
@@ -85,7 +85,6 @@ function App() {
       <h1>Бюро переселения привидений</h1>
       <Banner />
       <Tabs active={activeTab} onChange={setActiveTab} />
-      <Toolbar onClear={handleClear} onReset={handleReset} />
       {activeTab === 'applications' && (
         <ApplicationsTab
           ghosts={ghosts}
@@ -93,8 +92,13 @@ function App() {
           effectiveAssignments={effectiveAssignments}
           overrides={overrides}
           onOverride={handleOverride}
+          onClear={handleClear}
+          onReset={handleReset}
           now={now}
         />
+      )}
+      {activeTab === 'places' && (
+        <PlacesTab places={places} effectiveAssignments={effectiveAssignments} />
       )}
       {activeTab === 'report' && (
         <ReportTab

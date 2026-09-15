@@ -300,3 +300,78 @@
   padding: 12px 16px;
   margin-top: 16px;
 }
+
+.place-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.place-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.place-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.place-header h3 {
+  margin: 0;
+}
+
+.capacity {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.capacity-full {
+  color: var(--danger);
+}
+
+.place-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+
+.tag-neutral-off {
+  background: none;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.place-attributes {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.place-attributes dt {
+  color: var(--text-muted);
+}
+
+.place-attributes dd {
+  margin: 0;
+}
+
+.place-occupants ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+.place-occupants .empty-state {
+  padding: 0;
+  font-size: 14px;
+}
