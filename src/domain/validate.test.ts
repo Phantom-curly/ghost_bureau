@@ -9,7 +9,7 @@ function makeGhost(overrides: Partial<Ghost> = {}): Ghost {
     id: 'test-ghost',
     name: 'Тестовый призрак',
     anxiety: 5,
-    preferredTemp: 10,
+    preferredTemp: { min: 8, max: 12 },
     deadline: '2030-01-01',
     conditions: [],
     note: '',

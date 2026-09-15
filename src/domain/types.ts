@@ -10,7 +10,7 @@ export type Ghost = {
   id: string
   name: string
   anxiety: number
-  preferredTemp: number
+  preferredTemp: { min: number; max: number }
   deadline: string
   conditions: Condition[]
   note: string

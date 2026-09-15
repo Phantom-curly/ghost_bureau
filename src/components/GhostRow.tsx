@@ -46,8 +46,8 @@ export function GhostRow({
       <div className="ghost-header">
         <h3>{ghost.name}</h3>
         <span className="ghost-meta">
-          дедлайн {ghost.deadline}, тревожность {ghost.anxiety}, предпочитает {ghost.preferredTemp}
-          °C
+          дедлайн {ghost.deadline}, тревожность {ghost.anxiety}, предпочитает {ghost.preferredTemp.min}–
+          {ghost.preferredTemp.max}°C
         </span>
       </div>
       <p className="ghost-note">{ghost.note}</p>

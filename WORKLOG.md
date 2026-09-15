@@ -92,3 +92,35 @@
   actually uses relative asset paths. Added `.github/workflows/deploy.yml` as a separate
   workflow from the existing `ci.yml`, config only — no attempt to actually enable or trigger a
   deploy, since that needs the repo to exist on GitHub and Pages enabled in its settings.
+
+## Stage 8 — Domain changes (revision round)
+
+- 2026-09-15: 8.1 — `Ghost.preferredTemp` changed from a single number to `{ min, max }`;
+  `tempScore` changed from linear distance-from-a-point to distance-from-the-nearest-edge
+  (zero inside the range), per the user's exact formula. Test-first: rewrote the tempScore
+  tests for both ternary branches (below min, above max) plus a new inside-range/at-the-edges
+  case, and every other test that passed `preferredTemp` as a bare number — 8 tests failed
+  against the old implementation before the change landed, confirming they exercised real
+  behavior, not passing by accident.
+- 2026-09-15: Seed ranges (4–8 wide, matched to each ghost's written personality — e.g.
+  Родион's "agrees to anything" gets the widest band [4,12], Ефросинья's precision gets the
+  narrowest [16,20]) proposed and confirmed with the user before committing, per CLAUDE.md's
+  "ask before choosing anything I haven't specified" — the user gave the general rule, not the
+  exact numbers.
+- 2026-09-15: Confirmed effect on `assignAll` against the real seed data (not hand arithmetic):
+  Полина's score at theatre rose 76→83 (her wider range gives partial credit near its edge
+  instead of the old point-formula's full linear penalty) with no assignment change. Матильда's
+  assignment itself changed, theatre→castle: her new [10,15] range ties castle and theatre at
+  score 91 exactly (tempScore trades off against noiseScore differently at each place, and the
+  weighted sum happens to round to the same number). Flagged to the user as a real reassignment,
+  not just a score change, before touching the test or committing.
+- 2026-09-15: User's call on the Матильда tie: reject leaving it to incidental array order, and
+  reject narrowing her range just to force the old theatre outcome. Instead, added a genuine
+  tie-break rule to `compareCandidates` (the shared comparator `rankCandidates`/`assignAll` both
+  use — CLAUDE.md's single-source-of-truth rule) — on an exact overall-score tie, prefer the
+  place with the higher `noiseScore`, since noise carries the highest weight (×0.4, vs ×0.3 for
+  temp and humidity) of the three comfort components. Test-first: added a dedicated
+  `rankCandidates` test with two places engineered to tie at 91 with different noiseScores (94
+  vs 88), confirmed it failed against the old array-order fallback first. Матильда still lands
+  at castle under the new rule (its noiseScore 94 beats theatre's 88) — same outcome as the
+  incidental tie-break, but now for a stated, principled reason instead of array position.

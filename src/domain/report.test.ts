@@ -11,7 +11,7 @@ function makeGhost(overrides: Partial<Ghost> = {}): Ghost {
     id: 'test-ghost',
     name: 'Тестовый призрак',
     anxiety: 5,
-    preferredTemp: 10,
+    preferredTemp: { min: 8, max: 12 },
     deadline: '2030-01-01',
     conditions: [],
     note: '',
@@ -100,8 +100,8 @@ describe('rankPlaceDemand', () => {
   it('flags a place as overloaded when more ghosts want it than it can hold', () => {
     const place = makePlace({ id: 'popular', capacity: 1, temp: 10 })
     const other = makePlace({ id: 'other', capacity: 5, temp: -5 })
-    const g1 = makeGhost({ id: 'g1', preferredTemp: 10 })
-    const g2 = makeGhost({ id: 'g2', preferredTemp: 10 })
+    const g1 = makeGhost({ id: 'g1', preferredTemp: { min: 8, max: 12 } })
+    const g2 = makeGhost({ id: 'g2', preferredTemp: { min: 8, max: 12 } })
     const ranked = rankPlaceDemand([g1, g2], [place, other], NOW)
     const popular = ranked.find((r) => r.place.id === 'popular')
     expect(popular?.demand).toBe(2)

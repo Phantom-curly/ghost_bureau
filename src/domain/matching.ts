@@ -68,8 +68,15 @@ function findViolations(ghost: Ghost, place: Place, occupancy: number, now: Date
   )
 }
 
+function tempDistance(ghost: Ghost, place: Place): number {
+  const { min, max } = ghost.preferredTemp
+  if (place.temp < min) return min - place.temp
+  if (place.temp > max) return place.temp - max
+  return 0
+}
+
 function scorePlace(ghost: Ghost, place: Place): { score: number; breakdown: Breakdown } {
-  const tempScore = clamp(100 - Math.abs(place.temp - ghost.preferredTemp) * 8, 0, 100)
+  const tempScore = clamp(100 - tempDistance(ghost, place) * 8, 0, 100)
   const noiseScore = clamp(100 - place.noise * ghost.anxiety, 0, 100)
   const humidityTarget = hasCondition(ghost, 'likes_damp') ? 80 : 45
   const humidityScore = clamp(100 - Math.abs(place.humidity - humidityTarget) * 1.5, 0, 100)
@@ -117,7 +124,12 @@ export function tallyOccupancy(
 
 function compareCandidates(a: Candidate, b: Candidate): number {
   if (a.evaluation.eligible && b.evaluation.eligible) {
-    return b.evaluation.score - a.evaluation.score
+    const scoreDiff = b.evaluation.score - a.evaluation.score
+    if (scoreDiff !== 0) return scoreDiff
+    // Exact overall-score tie: prefer the place that's better on the most
+    // heavily-weighted comfort component (noise, x0.4, vs x0.3 for temp and
+    // humidity) rather than falling through to incidental array order.
+    return b.evaluation.breakdown.noiseScore - a.evaluation.breakdown.noiseScore
   }
   if (a.evaluation.eligible) return -1
   if (b.evaluation.eligible) return 1

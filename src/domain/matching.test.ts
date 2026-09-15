@@ -11,7 +11,7 @@ function makeGhost(overrides: Partial<Ghost> = {}): Ghost {
     id: 'test-ghost',
     name: 'Тестовый призрак',
     anxiety: 5,
-    preferredTemp: 10,
+    preferredTemp: { min: 8, max: 12 },
     deadline: '2030-01-01',
     conditions: [],
     note: '',
@@ -141,16 +141,41 @@ describe('evaluate — hard constraints', () => {
 })
 
 describe('evaluate — soft score formula', () => {
-  it('computes tempScore as 100 minus 8 per degree of difference', () => {
-    const ghost = makeGhost({ preferredTemp: 10 })
+  it('returns tempScore 100 for any place temperature inside the preferred range', () => {
+    const ghost = makeGhost({ preferredTemp: { min: 8, max: 14 } })
+    const place = makePlace({ temp: 11, noise: 0, humidity: 45 })
+    const result = evaluate(ghost, place, 0, NOW)
+    if (!result.eligible) throw new Error('expected eligible')
+    expect(result.breakdown.tempScore).toBe(100)
+  })
+
+  it('returns tempScore 100 at the exact edges of the preferred range', () => {
+    const ghost = makeGhost({ preferredTemp: { min: 8, max: 14 } })
+    const atMin = evaluate(ghost, makePlace({ temp: 8, noise: 0, humidity: 45 }), 0, NOW)
+    const atMax = evaluate(ghost, makePlace({ temp: 14, noise: 0, humidity: 45 }), 0, NOW)
+    if (!atMin.eligible || !atMax.eligible) throw new Error('expected eligible')
+    expect(atMin.breakdown.tempScore).toBe(100)
+    expect(atMax.breakdown.tempScore).toBe(100)
+  })
+
+  it('computes tempScore as 100 minus 8 per degree below the range minimum', () => {
+    const ghost = makeGhost({ preferredTemp: { min: 15, max: 20 } })
+    const place = makePlace({ temp: 10, noise: 0, humidity: 45 })
+    const result = evaluate(ghost, place, 0, NOW)
+    if (!result.eligible) throw new Error('expected eligible')
+    expect(result.breakdown.tempScore).toBe(60)
+  })
+
+  it('computes tempScore as 100 minus 8 per degree above the range maximum', () => {
+    const ghost = makeGhost({ preferredTemp: { min: 8, max: 10 } })
     const place = makePlace({ temp: 15, noise: 0, humidity: 45 })
     const result = evaluate(ghost, place, 0, NOW)
     if (!result.eligible) throw new Error('expected eligible')
     expect(result.breakdown.tempScore).toBe(60)
   })
 
-  it('clamps tempScore at 0 for a very large temperature gap', () => {
-    const ghost = makeGhost({ preferredTemp: -5 })
+  it('clamps tempScore at 0 for a very large gap outside the range', () => {
+    const ghost = makeGhost({ preferredTemp: { min: -8, max: -5 } })
     const place = makePlace({ temp: 20, noise: 0, humidity: 45 })
     const result = evaluate(ghost, place, 0, NOW)
     if (!result.eligible) throw new Error('expected eligible')
@@ -158,7 +183,7 @@ describe('evaluate — soft score formula', () => {
   })
 
   it('computes noiseScore as 100 minus noise times anxiety', () => {
-    const ghost = makeGhost({ anxiety: 4, preferredTemp: 10 })
+    const ghost = makeGhost({ anxiety: 4, preferredTemp: { min: 8, max: 12 } })
     const place = makePlace({ temp: 10, noise: 5, humidity: 45 })
     const result = evaluate(ghost, place, 0, NOW)
     if (!result.eligible) throw new Error('expected eligible')
@@ -166,7 +191,7 @@ describe('evaluate — soft score formula', () => {
   })
 
   it('clamps noiseScore at 0 for very high noise and anxiety', () => {
-    const ghost = makeGhost({ anxiety: 10, preferredTemp: 10 })
+    const ghost = makeGhost({ anxiety: 10, preferredTemp: { min: 8, max: 12 } })
     const place = makePlace({ temp: 10, noise: 10, humidity: 45 })
     const result = evaluate(ghost, place, 0, NOW)
     if (!result.eligible) throw new Error('expected eligible')
@@ -174,7 +199,7 @@ describe('evaluate — soft score formula', () => {
   })
 
   it('targets humidity 45 when the ghost does not like damp', () => {
-    const ghost = makeGhost({ preferredTemp: 10, conditions: [] })
+    const ghost = makeGhost({ preferredTemp: { min: 8, max: 12 }, conditions: [] })
     const place = makePlace({ temp: 10, noise: 0, humidity: 55 })
     const result = evaluate(ghost, place, 0, NOW)
     if (!result.eligible) throw new Error('expected eligible')
@@ -182,7 +207,7 @@ describe('evaluate — soft score formula', () => {
   })
 
   it('targets humidity 80 when the ghost likes damp', () => {
-    const ghost = makeGhost({ preferredTemp: 10, conditions: ['likes_damp'] })
+    const ghost = makeGhost({ preferredTemp: { min: 8, max: 12 }, conditions: ['likes_damp'] })
     const place = makePlace({ temp: 10, noise: 0, humidity: 90 })
     const result = evaluate(ghost, place, 0, NOW)
     if (!result.eligible) throw new Error('expected eligible')
@@ -191,7 +216,7 @@ describe('evaluate — soft score formula', () => {
 
   it('combines the three components with weights 0.3/0.4/0.3', () => {
     // tempScore=60, noiseScore=80, humidityScore=85 -> 60*.3+80*.4+85*.3 = 18+32+25.5 = 75.5 -> 76
-    const ghost = makeGhost({ preferredTemp: 10, anxiety: 4, conditions: [] })
+    const ghost = makeGhost({ preferredTemp: { min: 8, max: 10 }, anxiety: 4, conditions: [] })
     const place = makePlace({ temp: 15, noise: 5, humidity: 55 })
     const result = evaluate(ghost, place, 0, NOW)
     if (!result.eligible) throw new Error('expected eligible')
@@ -211,9 +236,9 @@ describe('evaluate — soft score formula', () => {
   })
 
   it('applies a -25 penalty and warning for needs_quiet in a noisy place', () => {
-    const ghost = makeGhost({ conditions: ['needs_quiet'], preferredTemp: 10 })
+    const ghost = makeGhost({ conditions: ['needs_quiet'], preferredTemp: { min: 8, max: 12 } })
     const place = makePlace({ temp: 10, noise: 6, humidity: 45 })
-    const withoutPenalty = evaluate(makeGhost({ preferredTemp: 10 }), place, 0, NOW)
+    const withoutPenalty = evaluate(makeGhost({ preferredTemp: { min: 8, max: 12 } }), place, 0, NOW)
     const withPenalty = evaluate(ghost, place, 0, NOW)
     if (!withoutPenalty.eligible || !withPenalty.eligible) throw new Error('expected eligible')
     expect(withPenalty.breakdown.penalty).toBe(-25)
@@ -238,7 +263,7 @@ describe('evaluate — soft score formula', () => {
   })
 
   it('clamps the final score at 0 after the needs_quiet penalty', () => {
-    const ghost = makeGhost({ conditions: ['needs_quiet'], anxiety: 10, preferredTemp: -5 })
+    const ghost = makeGhost({ conditions: ['needs_quiet'], anxiety: 10, preferredTemp: { min: -8, max: -5 } })
     const place = makePlace({ temp: 20, noise: 10, humidity: 0 })
     const result = evaluate(ghost, place, 0, NOW)
     if (!result.eligible) throw new Error('expected eligible')
@@ -283,8 +308,8 @@ describe('assignAll', () => {
   })
 
   it('displaces a later-deadline ghost to its runner-up when its top choice fills up', () => {
-    const winner = makeGhost({ id: 'winner', deadline: '2025-07-01', preferredTemp: 10 })
-    const runnerUp = makeGhost({ id: 'runner-up', deadline: '2025-08-01', preferredTemp: 10 })
+    const winner = makeGhost({ id: 'winner', deadline: '2025-07-01', preferredTemp: { min: 8, max: 12 } })
+    const runnerUp = makeGhost({ id: 'runner-up', deadline: '2025-08-01', preferredTemp: { min: 8, max: 12 } })
     const desired = makePlace({ id: 'desired', capacity: 1, temp: 10 })
     const fallback = makePlace({ id: 'fallback', capacity: 1, temp: 2 })
     const result = assignAll([winner, runnerUp], [desired, fallback], NOW)
@@ -317,12 +342,19 @@ describe('assignAll — seed data integration', () => {
     expect(byGhost.get('agrafena')?.score).toBe(84)
     expect(byGhost.get('rodion')?.place.id).toBe('castle')
     expect(byGhost.get('rodion')?.score).toBe(95)
-    expect(byGhost.get('matilda')?.place.id).toBe('theatre')
+    // Stage 8.1: preferredTemp became a range. Матильда now ties castle and
+    // theatre at score 91 (broader range makes castle's colder temp cheap
+    // enough to match theatre's noisier comfort) and the noiseScore
+    // tie-break sends her to castle (94 vs theatre's 88) -- see WORKLOG.md.
+    expect(byGhost.get('matilda')?.place.id).toBe('castle')
     expect(byGhost.get('matilda')?.score).toBe(91)
     expect(byGhost.get('efrosinya')?.place.id).toBe('library')
     expect(byGhost.get('efrosinya')?.score).toBe(76)
+    // Полина's range gives her partial temp credit near its edge at theatre
+    // (distance 1 instead of the old point-formula's 4), raising 76 -> 83.
+    // Same place either way -- Аграфена still claims print-shop first.
     expect(byGhost.get('polina')?.place.id).toBe('theatre')
-    expect(byGhost.get('polina')?.score).toBe(76)
+    expect(byGhost.get('polina')?.score).toBe(83)
 
     expect(result.assignments.some((a) => a.place.id === 'lighthouse')).toBe(false)
   })
@@ -375,7 +407,7 @@ describe('rankCandidates', () => {
   it('sorts eligible places by score descending', () => {
     const close = makePlace({ id: 'close', temp: 10, noise: 0, humidity: 45 })
     const far = makePlace({ id: 'far', temp: 18, noise: 0, humidity: 45 })
-    const ghost = makeGhost({ preferredTemp: 10 })
+    const ghost = makeGhost({ preferredTemp: { min: 8, max: 12 } })
     const occupancy = tallyOccupancy([close, far], [])
     const ranked = rankCandidates(ghost, [far, close], occupancy, NOW)
     expect(ranked.map((r) => r.place.id)).toEqual(['close', 'far'])
@@ -412,5 +444,26 @@ describe('rankCandidates', () => {
     const empty = rankCandidates(ghost, [place], { p1: 0 }, NOW)
     expect(full[0]?.evaluation.eligible).toBe(false)
     expect(empty[0]?.evaluation.eligible).toBe(true)
+  })
+
+  it('breaks an exact overall-score tie by preferring the higher noiseScore', () => {
+    // Both places round to score 91 (tempScore*.3 + noiseScore*.4 + humidityScore*.3):
+    // quieter:  84*.3 + 94*.4 + 92.5*.3 = 25.2 + 37.6 + 27.75 = 90.55 -> 91
+    // warmer:  100*.3 + 88*.4 +   85*.3 = 30.0 + 35.2 + 25.50 = 90.70 -> 91
+    // noiseScore (the highest-weighted component, x0.4) differs: 94 vs 88.
+    const ghost = makeGhost({ preferredTemp: { min: 10, max: 15 }, anxiety: 3 })
+    const quieter = makePlace({ id: 'quieter', temp: 8, noise: 2, humidity: 40 })
+    const warmer = makePlace({ id: 'warmer', temp: 12, noise: 4, humidity: 55 })
+    const occupancy = tallyOccupancy([quieter, warmer], [])
+    const ranked = rankCandidates(ghost, [warmer, quieter], occupancy, NOW)
+
+    const [first, second] = ranked
+    if (!first || !second || !first.evaluation.eligible || !second.evaluation.eligible) {
+      throw new Error('expected both places eligible')
+    }
+    expect(first.evaluation.score).toBe(91)
+    expect(second.evaluation.score).toBe(91)
+    expect(first.place.id).toBe('quieter')
+    expect(second.place.id).toBe('warmer')
   })
 })
