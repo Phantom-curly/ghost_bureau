@@ -1,121 +1,84 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useMemo, useState } from 'react'
+import { assignAll } from './domain/matching'
+import type { Ghost, Place } from './domain/types'
+import { ghosts as seedGhosts } from './data/ghosts'
+import { places } from './data/places'
+import { Banner } from './components/Banner'
+import { Toolbar } from './components/Toolbar'
+import { Tabs, type TabId } from './components/Tabs'
+import { ApplicationsTab } from './components/ApplicationsTab'
+import { PlaceholderTab } from './components/PlaceholderTab'
 import './App.css'
 
+function buildEffectiveAssignments(
+  ghosts: Ghost[],
+  places: Place[],
+  overrides: Record<string, string>,
+  autoPlaceByGhostId: Map<string, Place>,
+): Array<{ ghost: Ghost; place: Place }> {
+  const result: Array<{ ghost: Ghost; place: Place }> = []
+  for (const ghost of ghosts) {
+    const overriddenPlaceId = overrides[ghost.id]
+    const place = overriddenPlaceId
+      ? places.find((p) => p.id === overriddenPlaceId)
+      : autoPlaceByGhostId.get(ghost.id)
+    if (place) {
+      result.push({ ghost, place })
+    }
+  }
+  return result
+}
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [ghosts, setGhosts] = useState<Ghost[]>(seedGhosts)
+  const [overrides, setOverrides] = useState<Record<string, string>>({})
+  const [activeTab, setActiveTab] = useState<TabId>('applications')
+  const now = useMemo(() => new Date(), [])
+
+  const auto = useMemo(() => assignAll(ghosts, places, now), [ghosts, now])
+
+  const effectiveAssignments = useMemo(() => {
+    const autoPlaceByGhostId = new Map(auto.assignments.map((a) => [a.ghost.id, a.place]))
+    return buildEffectiveAssignments(ghosts, places, overrides, autoPlaceByGhostId)
+  }, [ghosts, overrides, auto])
+
+  function handleClear() {
+    setGhosts([])
+  }
+
+  function handleReset() {
+    setGhosts(seedGhosts)
+    setOverrides({})
+  }
+
+  function handleOverride(ghostId: string, placeId: string | null) {
+    setOverrides((prev) => {
+      if (placeId === null) {
+        return Object.fromEntries(Object.entries(prev).filter(([id]) => id !== ghostId))
+      }
+      return { ...prev, [ghostId]: placeId }
+    })
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <div className="app">
+      <h1>Бюро переселения привидений</h1>
+      <Banner />
+      <Tabs active={activeTab} onChange={setActiveTab} />
+      <Toolbar onClear={handleClear} onReset={handleReset} />
+      {activeTab === 'applications' && (
+        <ApplicationsTab
+          ghosts={ghosts}
+          places={places}
+          effectiveAssignments={effectiveAssignments}
+          overrides={overrides}
+          onOverride={handleOverride}
+          now={now}
+        />
+      )}
+      {activeTab === 'report' && <PlaceholderTab label="Отчёт" />}
+      {activeTab === 'worklog' && <PlaceholderTab label="AI Worklog" />}
+    </div>
   )
 }
 

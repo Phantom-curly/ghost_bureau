@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignAll, evaluate } from './matching'
+import { assignAll, evaluate, rankCandidates, tallyOccupancy } from './matching'
 import { ghosts as seedGhosts } from '../data/ghosts'
 import { places as seedPlaces } from '../data/places'
 import type { Ghost, Place } from './types'
@@ -341,5 +341,76 @@ describe('assignAll — seed data integration', () => {
     expect(reasons.every((v) => v.length > 0)).toBe(true)
     const distinctReasons = new Set(reasons.flat())
     expect(distinctReasons.size).toBeGreaterThan(1)
+  })
+})
+
+describe('tallyOccupancy', () => {
+  it('gives every place a 0 entry when there are no assignments', () => {
+    const places = [makePlace({ id: 'p1' }), makePlace({ id: 'p2' })]
+    expect(tallyOccupancy(places, [])).toEqual({ p1: 0, p2: 0 })
+  })
+
+  it('counts how many assignments land on each place', () => {
+    const places = [makePlace({ id: 'p1' }), makePlace({ id: 'p2' })]
+    const g1 = makeGhost({ id: 'g1' })
+    const g2 = makeGhost({ id: 'g2' })
+    const g3 = makeGhost({ id: 'g3' })
+    const assignments = [
+      { ghost: g1, place: places[0] },
+      { ghost: g2, place: places[0] },
+      { ghost: g3, place: places[1] },
+    ]
+    expect(tallyOccupancy(places, assignments)).toEqual({ p1: 2, p2: 1 })
+  })
+})
+
+describe('rankCandidates', () => {
+  it('returns every place, not just the winner', () => {
+    const places = [makePlace({ id: 'p1' }), makePlace({ id: 'p2' }), makePlace({ id: 'p3' })]
+    const occupancy = tallyOccupancy(places, [])
+    const ranked = rankCandidates(makeGhost(), places, occupancy, NOW)
+    expect(ranked).toHaveLength(3)
+  })
+
+  it('sorts eligible places by score descending', () => {
+    const close = makePlace({ id: 'close', temp: 10, noise: 0, humidity: 45 })
+    const far = makePlace({ id: 'far', temp: 18, noise: 0, humidity: 45 })
+    const ghost = makeGhost({ preferredTemp: 10 })
+    const occupancy = tallyOccupancy([close, far], [])
+    const ranked = rankCandidates(ghost, [far, close], occupancy, NOW)
+    expect(ranked.map((r) => r.place.id)).toEqual(['close', 'far'])
+  })
+
+  it('puts ineligible places after eligible ones, in their original order', () => {
+    const eligible = makePlace({ id: 'eligible', capacity: 5 })
+    const blockedA = makePlace({ id: 'blocked-a', capacity: 0 })
+    const blockedB = makePlace({ id: 'blocked-b', capacity: 0 })
+    const ghost = makeGhost()
+    const occupancy = tallyOccupancy([blockedA, eligible, blockedB], [])
+    const ranked = rankCandidates(ghost, [blockedA, eligible, blockedB], occupancy, NOW)
+    expect(ranked.map((r) => r.place.id)).toEqual(['eligible', 'blocked-a', 'blocked-b'])
+    expect(ranked[1]?.evaluation.eligible).toBe(false)
+    expect(ranked[2]?.evaluation.eligible).toBe(false)
+  })
+
+  it('exposes violations for every place when a ghost is unplaceable everywhere', () => {
+    const now = new Date()
+    const kassian = seedGhosts.find((g) => g.id === 'kassian')
+    if (!kassian) throw new Error('seed data must contain kassian')
+    const occupancy = tallyOccupancy(seedPlaces, [])
+    const ranked = rankCandidates(kassian, seedPlaces, occupancy, now)
+    expect(ranked).toHaveLength(seedPlaces.length)
+    expect(ranked.every((r) => !r.evaluation.eligible && r.evaluation.violations.length > 0)).toBe(
+      true,
+    )
+  })
+
+  it('respects the given occupancy map for the capacity check', () => {
+    const place = makePlace({ id: 'p1', capacity: 1 })
+    const ghost = makeGhost()
+    const full = rankCandidates(ghost, [place], { p1: 1 }, NOW)
+    const empty = rankCandidates(ghost, [place], { p1: 0 }, NOW)
+    expect(full[0]?.evaluation.eligible).toBe(false)
+    expect(empty[0]?.evaluation.eligible).toBe(true)
   })
 })

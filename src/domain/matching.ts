@@ -1,6 +1,6 @@
 import type { Condition, Ghost, Place } from './types'
 
-type Breakdown = {
+export type Breakdown = {
   tempScore: number
   noiseScore: number
   humidityScore: number
@@ -8,13 +8,15 @@ type Breakdown = {
   warnings: string[]
 }
 
-type Evaluation =
+export type Evaluation =
   | { eligible: true; violations: string[]; score: number; breakdown: Breakdown }
   | { eligible: false; violations: string[]; score: null; breakdown: null }
 
-type Assignment = { ghost: Ghost; place: Place; score: number; breakdown: Breakdown }
+export type Assignment = { ghost: Ghost; place: Place; score: number; breakdown: Breakdown }
 
-type AssignAllResult = { assignments: Assignment[]; unplaced: Ghost[] }
+export type AssignAllResult = { assignments: Assignment[]; unplaced: Ghost[] }
+
+export type Candidate = { place: Place; evaluation: Evaluation }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
@@ -102,39 +104,58 @@ function sortByDeadlineThenAnxiety(ghosts: Ghost[]): Ghost[] {
   })
 }
 
-type BestCandidate = { place: Place; score: number; breakdown: Breakdown }
+export function tallyOccupancy(
+  places: Place[],
+  assignments: Array<{ ghost: Ghost; place: Place }>,
+): Record<string, number> {
+  const tally: Record<string, number> = Object.fromEntries(places.map((p) => [p.id, 0]))
+  for (const { place } of assignments) {
+    tally[place.id] += 1
+  }
+  return tally
+}
 
-function findBestEligiblePlace(
+function compareCandidates(a: Candidate, b: Candidate): number {
+  if (a.evaluation.eligible && b.evaluation.eligible) {
+    return b.evaluation.score - a.evaluation.score
+  }
+  if (a.evaluation.eligible) return -1
+  if (b.evaluation.eligible) return 1
+  return 0
+}
+
+export function rankCandidates(
   ghost: Ghost,
   places: Place[],
   occupancy: Record<string, number>,
   now: Date,
-): BestCandidate | null {
-  let best: BestCandidate | null = null
-  for (const place of places) {
-    const result = evaluate(ghost, place, occupancy[place.id], now)
-    if (!result.eligible) continue
-    if (best === null || result.score > best.score) {
-      best = { place, score: result.score, breakdown: result.breakdown }
-    }
-  }
-  return best
+): Candidate[] {
+  const evaluated = places.map((place) => ({
+    place,
+    evaluation: evaluate(ghost, place, occupancy[place.id], now),
+  }))
+  return [...evaluated].sort(compareCandidates)
 }
 
 export function assignAll(ghosts: Ghost[], places: Place[], now: Date): AssignAllResult {
-  const occupancy: Record<string, number> = Object.fromEntries(places.map((p) => [p.id, 0]))
+  const occupancy = tallyOccupancy(places, [])
   const assignments: Assignment[] = []
   const unplaced: Ghost[] = []
 
   for (const ghost of sortByDeadlineThenAnxiety(ghosts)) {
-    const best = findBestEligiblePlace(ghost, places, occupancy, now)
-    if (best === null) {
+    const [best] = rankCandidates(ghost, places, occupancy, now)
+    if (!best || !best.evaluation.eligible) {
       unplaced.push(ghost)
       continue
     }
 
     occupancy[best.place.id] += 1
-    assignments.push({ ghost, place: best.place, score: best.score, breakdown: best.breakdown })
+    assignments.push({
+      ghost,
+      place: best.place,
+      score: best.evaluation.score,
+      breakdown: best.evaluation.breakdown,
+    })
   }
 
   return { assignments, unplaced }
