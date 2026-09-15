@@ -59,3 +59,20 @@
   auto-matching algorithm and the UI's candidate ranking are provably the same code path, not
   two implementations of the same idea. Internal-only change; `assignAll`'s observable
   behavior and all 35 existing tests were unaffected.
+
+## Stage 6 — Report and worklog
+
+- 2026-09-15: Decided the report's "most problematic applications" and "overloaded locations"
+  are computed against a zero-occupancy baseline (`tallyOccupancy(places, [])`), not the live,
+  override-aware occupancy the applications tab uses. Reasoning: "demand vs capacity" only
+  means something if demand is measured independently of capacity — with live occupancy, the
+  moment one ghost claims a seat, evaluating a second ghost against that place would already
+  show it as ineligible (capacity full), collapsing "2 ghosts want this 1-seat place" down to
+  "1 ghost has it," hiding exactly the thing that section exists to reveal. Same reasoning for
+  "most problematic": it should be a stable structural property of the applications
+  themselves, not something that jitters depending on unrelated manual overrides elsewhere.
+- 2026-09-15: Confirmed the AI Worklog tab renders `WORKLOG.md` (pulled in at build time via
+  Vite's `?raw` import) with a small hand-rolled renderer rather than adding a markdown
+  dependency — headers, bullets, bold, and paragraphs, exactly the subset this file uses.
+  Inline code spans (backtick text) render as literal characters rather than styled `<code>`,
+  since that wasn't part of the agreed subset; not worth a dependency for.
