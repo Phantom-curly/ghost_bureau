@@ -347,23 +347,30 @@ describe('assignAll', () => {
 })
 
 describe('assignAll — seed data integration', () => {
-  it('reproduces the four guaranteed scenarios against the real seed data', () => {
+  it('reproduces the guaranteed scenarios against the real seed data (17 ghosts, 9 places)', () => {
     const now = new Date()
     const result = assignAll(seedGhosts, seedPlaces, now)
 
-    expect(result.unplaced.map((g) => g.id).sort()).toEqual(['kassian', 'praskovya'])
+    // Every new ghost's deadline is later than every originally-placed ghost's, so the
+    // original five's assignments can only be displaced by a genuinely better-scoring new
+    // place, never by processing order -- see WORKLOG.md's seed-expansion entry.
+    expect(result.unplaced.map((g) => g.id).sort()).toEqual([
+      'agafon',
+      'kassian',
+      'porfiry',
+      'praskovya',
+    ])
 
     const byGhost = new Map(result.assignments.map((a) => [a.ghost.id, a]))
     expect(byGhost.get('agrafena')?.place.id).toBe('print-shop')
     expect(byGhost.get('agrafena')?.score).toBe(84)
     expect(byGhost.get('rodion')?.place.id).toBe('castle')
     expect(byGhost.get('rodion')?.score).toBe(95)
-    // Stage 8.1: preferredTemp became a range. Матильда now ties castle and
-    // theatre at score 91 (broader range makes castle's colder temp cheap
-    // enough to match theatre's noisier comfort) and the noiseScore
-    // tie-break sends her to castle (94 vs theatre's 88) -- see WORKLOG.md.
-    expect(byGhost.get('matilda')?.place.id).toBe('castle')
-    expect(byGhost.get('matilda')?.score).toBe(91)
+    // Матильда's own top choice shifts from castle to the manor once it exists (93 > 91) --
+    // a genuinely better fit, not a displacement by another ghost. Verified by simulation
+    // before this assertion was written; see WORKLOG.md.
+    expect(byGhost.get('matilda')?.place.id).toBe('manor')
+    expect(byGhost.get('matilda')?.score).toBe(93)
     expect(byGhost.get('efrosinya')?.place.id).toBe('library')
     expect(byGhost.get('efrosinya')?.score).toBe(76)
     // Полина's range gives her partial temp credit near its edge at theatre
@@ -371,8 +378,6 @@ describe('assignAll — seed data integration', () => {
     // Same place either way -- Аграфена still claims print-shop first.
     expect(byGhost.get('polina')?.place.id).toBe('theatre')
     expect(byGhost.get('polina')?.score).toBe(83)
-
-    expect(result.assignments.some((a) => a.place.id === 'lighthouse')).toBe(false)
   })
 
   it('gives every place a Russian reason for rejecting Кассиан, and it is more than one distinct reason', () => {

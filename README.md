@@ -74,12 +74,16 @@ npm run lint         # ESLint
 **Мягкий балл** (0–100, только для подходящих мест):
 
 ```
-tempScore     = clamp(100 - |place.temp - ghost.preferredTemp| * 8, 0, 100)
+distance      = temp < min ? min - temp : temp > max ? temp - max : 0
+tempScore     = clamp(100 - distance * 8, 0, 100)
 noiseScore    = clamp(100 - place.noise * ghost.anxiety, 0, 100)
 humidityTarget = likes_damp ? 80 : 45
 humidityScore = clamp(100 - |place.humidity - humidityTarget| * 1.5, 0, 100)
 score = round(tempScore * 0.3 + noiseScore * 0.4 + humidityScore * 0.3)
 ```
+
+`ghost.preferredTemp` — это диапазон `{ min, max }`, а не одна точка: температура внутри
+диапазона всегда даёт `tempScore = 100`, а штраф считается от ближайшей границы.
 
 `needs_quiet` не блокирует, а штрафует: если `place.noise > 5`, из балла вычитается 25 и
 добавляется предупреждение «Шумно для этого привидения» (итоговый балл не уходит ниже 0).
@@ -101,7 +105,7 @@ score = round(tempScore * 0.3 + noiseScore * 0.4 + humidityScore * 0.3)
 ## Структура
 
 - `src/domain/` — вся логика подбора (чистые функции, 100% покрытие тестами).
-- `src/data/` — стартовые данные: 5 мест и 7 привидений.
+- `src/data/` — стартовые данные: 9 мест и 17 привидений.
 - `src/components/` — компоненты интерфейса; они только показывают результат работы домена и
   сами ничего не вычисляют.
 - `SCENARIOS.md` — пять сценариев в формате Дано/Когда/Тогда.

@@ -77,13 +77,18 @@ describe('rankByViolations', () => {
     expect(result?.violationCount).toBe(1)
   })
 
-  it('ranks Кассиан and Прасковья as the most problematic in the real seed data', () => {
+  it('ranks the two attic-plus-mirrors ghosts as most problematic in the real seed data', () => {
     const now = new Date()
     const ranked = rankByViolations(seedGhosts, seedPlaces, now)
+    // Порфирий was added deliberately as a second ghost blocked by the same combination as
+    // Кассиан (attic + no_mirrors against the 9-place roster, where only the castle has an
+    // attic and it also has mirrors), so they tie for most violations. Stable sort keeps
+    // Кассиан first since he appears earlier in the seed array. Verified by simulation, not
+    // hand arithmetic -- see WORKLOG.md.
     expect(ranked[0]?.ghost.id).toBe('kassian')
-    expect(ranked[0]?.violationCount).toBe(6)
-    expect(ranked[1]?.ghost.id).toBe('praskovya')
-    expect(ranked[1]?.violationCount).toBe(5)
+    expect(ranked[0]?.violationCount).toBe(12)
+    expect(ranked[1]?.ghost.id).toBe('porfiry')
+    expect(ranked[1]?.violationCount).toBe(12)
   })
 })
 
@@ -129,7 +134,9 @@ describe('rankPlaceDemand', () => {
     const printShop = ranked.find((r) => r.place.id === 'print-shop')
     expect(printShop?.demand).toBe(2)
     expect(printShop?.overloaded).toBe(true)
+    // The castle and lighthouse are also overloaded once the 10 new ghosts exist (demand 4/2
+    // and 2/1 respectively) -- verified by simulation against the real seed, not assumed.
     const overloaded = ranked.filter((r) => r.overloaded)
-    expect(overloaded.map((r) => r.place.id)).toEqual(['print-shop'])
+    expect(overloaded.map((r) => r.place.id)).toEqual(['castle', 'lighthouse', 'print-shop'])
   })
 })
