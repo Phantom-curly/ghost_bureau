@@ -124,3 +124,14 @@
   vs 88), confirmed it failed against the old array-order fallback first. Матильда still lands
   at castle under the new rule (its noiseScore 94 beats theatre's 88) — same outcome as the
   incidental tie-break, but now for a stated, principled reason instead of array position.
+- 2026-09-15: 8.2 — Added `globalViolations(ghost, now)`, the deadline check pulled out of the
+  hard-constraint table. `evaluate` calls it internally rather than duplicating the rule, so it
+  stays the single source of truth for the deadline violation exactly as specified — verified
+  by a test that asserts `evaluate`'s violations equal `globalViolations`'s output directly, not
+  just that both happen to produce the same string.
+- 2026-09-15: 8.3 — Added `deadlineStatus(ghost, now)`. Picked `Math.ceil` for `daysLeft` (a
+  deadline 9 hours away still reads as "1 day left," not "0") and the exact boundary from the
+  brief (urgent at 7 days or fewer, tested at both 7 and 8 to pin the edge).
+- 2026-09-15: 8.4 — Added `occupantsByPlace(places, assignments)`, pre-seeded with every place
+  id mapped to `[]` so lookups never need a fallback default, matching the same pattern already
+  used in `tallyOccupancy`.
