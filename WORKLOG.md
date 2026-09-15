@@ -155,3 +155,18 @@
   manual override must keep working even for an expired-deadline ghost, since override already
   warns rather than blocks everywhere else in the app. Verified in the browser that overriding
   Кассиан still shows the chosen location's violations as a warning, not a second blocked state.
+
+## Stage 10 — Locations tab and toolbar scoping
+
+- 2026-09-15: Confirmed all three structural place tags (attic/mirrors/humans) are always-shown
+  and two-state ("есть чердак"/"нет чердака", etc.), not positive-only like the ghost condition
+  tags. The brief only spelled out both states for attic explicitly; extended the same pattern
+  to mirrors and humans since the stated purpose — legible cross-referencing against a ghost's
+  requirement — needs an explicit answer either way, not an absence to interpret.
+- 2026-09-15: No domain changes this stage — everything the Места tab needed (`occupantsByPlace`
+  plus plain `Place` fields) already existed from stage 8.4 onward. First revision-round stage
+  that touched zero files under `src/domain/`.
+- 2026-09-15: Moving the toolbar into `ApplicationsTab` required rendering it in *both* of that
+  component's return paths (the populated list and the empty-list early return), not just one —
+  otherwise relocating it would have broken `Сбросить`'s one-click reachability from the empty
+  state it exists to recover from. Caught and fixed before committing, verified in the browser.
