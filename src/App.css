@@ -55,8 +55,7 @@
   border-color: var(--accent);
 }
 
-.empty-state,
-.placeholder-tab {
+.empty-state {
   color: var(--text-muted);
   padding: 24px 0;
 }
@@ -150,4 +149,46 @@
 
 .candidates li.ineligible {
   color: var(--danger);
+}
+
+.report section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.report h2 {
+  font-size: 17px;
+}
+
+.report ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.report li.ineligible {
+  color: var(--danger);
+}
+
+.report .honest-note {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.worklog h1 {
+  font-size: 22px;
+}
+
+.worklog h2 {
+  font-size: 17px;
+  margin-top: 20px;
+}
+
+.worklog ul {
+  padding-left: 20px;
+}
+
+.worklog li {
+  margin-bottom: 6px;
 }

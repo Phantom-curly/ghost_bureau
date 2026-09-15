@@ -7,7 +7,8 @@ import { Banner } from './components/Banner'
 import { Toolbar } from './components/Toolbar'
 import { Tabs, type TabId } from './components/Tabs'
 import { ApplicationsTab } from './components/ApplicationsTab'
-import { PlaceholderTab } from './components/PlaceholderTab'
+import { ReportTab } from './components/ReportTab'
+import { WorklogTab } from './components/WorklogTab'
 import './App.css'
 
 function buildEffectiveAssignments(
@@ -76,8 +77,15 @@ function App() {
           now={now}
         />
       )}
-      {activeTab === 'report' && <PlaceholderTab label="Отчёт" />}
-      {activeTab === 'worklog' && <PlaceholderTab label="AI Worklog" />}
+      {activeTab === 'report' && (
+        <ReportTab
+          ghosts={ghosts}
+          places={places}
+          effectiveAssignments={effectiveAssignments}
+          now={now}
+        />
+      )}
+      {activeTab === 'worklog' && <WorklogTab />}
     </div>
   )
 }
