@@ -76,3 +76,19 @@
   dependency — headers, bullets, bold, and paragraphs, exactly the subset this file uses.
   Inline code spans (backtick text) render as literal characters rather than styled `<code>`,
   since that wasn't part of the agreed subset; not worth a dependency for.
+
+## Stage 7 — Finish
+
+- 2026-09-15: Scoped the domain's typed validation (`validateData`) to invariants that would
+  actually cause silent misbehavior — duplicate ids, negative capacity, unparseable deadlines —
+  rather than exhaustive range-checking every numeric field. Also noted plainly that this path
+  can't actually trigger in today's app: applications can't be created or edited, so `ghosts`
+  only ever becomes the seed array or `[]`, both valid by construction. Built anyway because
+  CLAUDE.md's "the domain validates, the UI never throws" is a standing architectural rule, not
+  a feature gated on editing existing — and it's the right place for it the moment that changes.
+- 2026-09-15: Confirmed GitHub Pages as the deploy target. Since no git remote exists yet and
+  the eventual `/repo-name/` subpath is unknown, used a relative `base: './'` in
+  `vite.config.ts` instead of guessing a repo name — verified the built `dist/index.html`
+  actually uses relative asset paths. Added `.github/workflows/deploy.yml` as a separate
+  workflow from the existing `ci.yml`, config only — no attempt to actually enable or trigger a
+  deploy, since that needs the repo to exist on GitHub and Pages enabled in its settings.
