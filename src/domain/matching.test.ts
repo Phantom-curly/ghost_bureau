@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { assignAll, evaluate, rankCandidates, tallyOccupancy } from './matching'
+import {
+  assignAll,
+  deadlineStatus,
+  evaluate,
+  globalViolations,
+  occupantsByPlace,
+  rankCandidates,
+  tallyOccupancy,
+} from './matching'
 import { ghosts as seedGhosts } from '../data/ghosts'
 import { places as seedPlaces } from '../data/places'
 import type { Ghost, Place } from './types'
@@ -465,5 +473,81 @@ describe('rankCandidates', () => {
     expect(second.evaluation.score).toBe(91)
     expect(first.place.id).toBe('quieter')
     expect(second.place.id).toBe('warmer')
+  })
+})
+
+describe('globalViolations', () => {
+  it('returns no violations when the deadline has not passed', () => {
+    const ghost = makeGhost({ deadline: '2030-01-01' })
+    expect(globalViolations(ghost, NOW)).toEqual([])
+  })
+
+  it('returns the deadline violation when it has passed', () => {
+    const ghost = makeGhost({ deadline: '2020-01-01' })
+    expect(globalViolations(ghost, NOW)).toEqual(['Дедлайн переселения просрочен'])
+  })
+
+  it('is exactly the source evaluate uses for the deadline violation, not a second check', () => {
+    const ghost = makeGhost({ deadline: '2020-01-01' })
+    const place = makePlace()
+    const result = evaluate(ghost, place, 0, NOW)
+    if (result.eligible) throw new Error('expected ineligible')
+    expect(result.violations).toEqual(globalViolations(ghost, NOW))
+  })
+
+  it('does not affect place-specific violations for a ghost with a valid deadline', () => {
+    const ghost = makeGhost({ deadline: '2030-01-01', conditions: ['attic'] })
+    const place = makePlace({ hasAttic: false })
+    const result = evaluate(ghost, place, 0, NOW)
+    if (result.eligible) throw new Error('expected ineligible')
+    expect(result.violations).toEqual(['В здании нет чердака'])
+  })
+})
+
+describe('deadlineStatus', () => {
+  it('reports normal state with the correct days left for a comfortably future deadline', () => {
+    const ghost = makeGhost({ deadline: '2025-06-11T00:00:00Z' })
+    expect(deadlineStatus(ghost, NOW)).toEqual({ daysLeft: 10, state: 'normal' })
+  })
+
+  it('treats exactly 7 days left as urgent', () => {
+    const ghost = makeGhost({ deadline: '2025-06-08T00:00:00Z' })
+    expect(deadlineStatus(ghost, NOW)).toEqual({ daysLeft: 7, state: 'urgent' })
+  })
+
+  it('treats 8 days left as normal, not urgent', () => {
+    const ghost = makeGhost({ deadline: '2025-06-09T00:00:00Z' })
+    expect(deadlineStatus(ghost, NOW)).toEqual({ daysLeft: 8, state: 'normal' })
+  })
+
+  it('reports expired state with a negative daysLeft for a past deadline', () => {
+    const ghost = makeGhost({ deadline: '2025-05-02T00:00:00Z' })
+    const result = deadlineStatus(ghost, NOW)
+    expect(result.state).toBe('expired')
+    expect(result.daysLeft).toBeLessThan(0)
+  })
+})
+
+describe('occupantsByPlace', () => {
+  it('maps every place to an empty array when there are no assignments', () => {
+    const places = [makePlace({ id: 'p1' }), makePlace({ id: 'p2' })]
+    const result = occupantsByPlace(places, [])
+    expect(result.get('p1')).toEqual([])
+    expect(result.get('p2')).toEqual([])
+  })
+
+  it('groups ghosts under the place they are assigned to', () => {
+    const places = [makePlace({ id: 'p1' }), makePlace({ id: 'p2' })]
+    const g1 = makeGhost({ id: 'g1' })
+    const g2 = makeGhost({ id: 'g2' })
+    const g3 = makeGhost({ id: 'g3' })
+    const assignments = [
+      { ghost: g1, place: places[0] },
+      { ghost: g2, place: places[0] },
+      { ghost: g3, place: places[1] },
+    ]
+    const result = occupantsByPlace(places, assignments)
+    expect(result.get('p1')?.map((g) => g.id)).toEqual(['g1', 'g2'])
+    expect(result.get('p2')?.map((g) => g.id)).toEqual(['g3'])
   })
 })

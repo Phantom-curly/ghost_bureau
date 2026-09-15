@@ -26,12 +26,23 @@ function hasCondition(ghost: Ghost, condition: Condition): boolean {
   return ghost.conditions.includes(condition)
 }
 
-function checkCapacity(_ghost: Ghost, place: Place, occupancy: number): boolean {
-  return occupancy >= place.capacity
+export type Violation = string
+
+function checkDeadlineExpired(ghost: Ghost, now: Date): boolean {
+  return new Date(ghost.deadline) < now
 }
 
-function checkDeadline(ghost: Ghost, _place: Place, _occupancy: number, now: Date): boolean {
-  return new Date(ghost.deadline) < now
+// Violations that don't depend on any place — today, just the deadline. `evaluate` calls this
+// rather than checking the deadline itself, so there is exactly one place this rule lives.
+export function globalViolations(ghost: Ghost, now: Date): Violation[] {
+  if (checkDeadlineExpired(ghost, now)) {
+    return ['Дедлайн переселения просрочен']
+  }
+  return []
+}
+
+function checkCapacity(_ghost: Ghost, place: Place, occupancy: number): boolean {
+  return occupancy >= place.capacity
 }
 
 function checkHumans(ghost: Ghost, place: Place): boolean {
@@ -50,20 +61,19 @@ function checkLight(ghost: Ghost, place: Place): boolean {
   return hasCondition(ghost, 'needs_dark') && place.light > 6
 }
 
-const HARD_CHECKS: Array<{
-  check: (ghost: Ghost, place: Place, occupancy: number, now: Date) => boolean
+const PLACE_CHECKS: Array<{
+  check: (ghost: Ghost, place: Place, occupancy: number) => boolean
   reason: string
 }> = [
   { check: checkCapacity, reason: 'Нет свободных мест' },
-  { check: checkDeadline, reason: 'Дедлайн переселения просрочен' },
   { check: checkHumans, reason: 'В здании живут люди' },
   { check: checkAttic, reason: 'В здании нет чердака' },
   { check: checkMirrors, reason: 'В здании есть зеркала' },
   { check: checkLight, reason: 'Слишком светло' },
 ]
 
-function findViolations(ghost: Ghost, place: Place, occupancy: number, now: Date): string[] {
-  return HARD_CHECKS.filter(({ check }) => check(ghost, place, occupancy, now)).map(
+function findPlaceViolations(ghost: Ghost, place: Place, occupancy: number): Violation[] {
+  return PLACE_CHECKS.filter(({ check }) => check(ghost, place, occupancy)).map(
     ({ reason }) => reason,
   )
 }
@@ -94,7 +104,7 @@ function scorePlace(ghost: Ghost, place: Place): { score: number; breakdown: Bre
 }
 
 export function evaluate(ghost: Ghost, place: Place, occupancy: number, now: Date): Evaluation {
-  const violations = findViolations(ghost, place, occupancy, now)
+  const violations = [...globalViolations(ghost, now), ...findPlaceViolations(ghost, place, occupancy)]
   if (violations.length > 0) {
     return { eligible: false, violations, score: null, breakdown: null }
   }
@@ -171,4 +181,28 @@ export function assignAll(ghosts: Ghost[], places: Place[], now: Date): AssignAl
   }
 
   return { assignments, unplaced }
+}
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24
+const URGENT_THRESHOLD_DAYS = 7
+
+export type DeadlineState = 'expired' | 'urgent' | 'normal'
+export type DeadlineStatus = { daysLeft: number; state: DeadlineState }
+
+export function deadlineStatus(ghost: Ghost, now: Date): DeadlineStatus {
+  const daysLeft = Math.ceil((new Date(ghost.deadline).getTime() - now.getTime()) / MS_PER_DAY)
+  const state: DeadlineState =
+    daysLeft < 0 ? 'expired' : daysLeft <= URGENT_THRESHOLD_DAYS ? 'urgent' : 'normal'
+  return { daysLeft, state }
+}
+
+export function occupantsByPlace(
+  places: Place[],
+  assignments: Array<{ ghost: Ghost; place: Place }>,
+): Map<string, Ghost[]> {
+  const map = new Map<string, Ghost[]>(places.map((place) => [place.id, []]))
+  for (const { ghost, place } of assignments) {
+    map.get(place.id)?.push(ghost)
+  }
+  return map
 }
