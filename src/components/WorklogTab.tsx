@@ -4,6 +4,7 @@ import worklogRaw from '../../WORKLOG.md?raw'
 type Block =
   | { type: 'h1'; text: string }
   | { type: 'h2'; text: string }
+  | { type: 'h3'; text: string }
   | { type: 'ul'; items: string[] }
   | { type: 'p'; text: string }
 
@@ -29,6 +30,11 @@ function parseWorklog(markdown: string): Block[] {
 
     if (line === '') {
       flush()
+      continue
+    }
+        if (line.startsWith('### ')) {
+      flush()
+      blocks.push({ type: 'h3', text: line.slice(4) })
       continue
     }
     if (line.startsWith('## ')) {
@@ -77,6 +83,9 @@ function renderBlocks(blocks: Block[]): ReactNode[] {
     }
     if (block.type === 'h2') {
       return <h2 key={index}>{renderInline(block.text)}</h2>
+    }
+    if (block.type === 'h3') {
+      return <h3 key={index}>{renderInline(block.text)}</h3>
     }
     if (block.type === 'ul') {
       return (

@@ -276,12 +276,18 @@
 }
 
 .worklog h1 {
-  font-size: 22px;
+  font-size: 25px;
 }
 
 .worklog h2 {
-  font-size: 17px;
+  font-size: 20px;
   margin-top: 20px;
+}
+
+.worklog h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
 }
 
 .worklog ul {
