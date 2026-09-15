@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { assignAll } from './domain/matching'
+import { validateData } from './domain/validate'
 import type { Ghost, Place } from './domain/types'
 import { ghosts as seedGhosts } from './data/ghosts'
 import { places } from './data/places'
@@ -36,6 +37,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabId>('applications')
   const now = useMemo(() => new Date(), [])
 
+  const validation = useMemo(() => validateData(ghosts, places), [ghosts])
+
   const auto = useMemo(() => assignAll(ghosts, places, now), [ghosts, now])
 
   const effectiveAssignments = useMemo(() => {
@@ -59,6 +62,22 @@ function App() {
       }
       return { ...prev, [ghostId]: placeId }
     })
+  }
+
+  if (!validation.valid) {
+    return (
+      <div className="app">
+        <h1>Бюро переселения привидений</h1>
+        <div className="error-message">
+          <p>Данные повреждены, работа приложения приостановлена:</p>
+          <ul>
+            {validation.errors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    )
   }
 
   return (
