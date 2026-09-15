@@ -4,6 +4,7 @@ export type Breakdown = {
   tempScore: number
   noiseScore: number
   humidityScore: number
+  humidityTarget: number
   penalty: number
   warnings: string[]
 }
@@ -85,12 +86,18 @@ function tempDistance(ghost: Ghost, place: Place): number {
   return 0
 }
 
+export const SCORE_WEIGHTS = { temp: 0.3, noise: 0.4, humidity: 0.3 } as const
+
 function scorePlace(ghost: Ghost, place: Place): { score: number; breakdown: Breakdown } {
   const tempScore = clamp(100 - tempDistance(ghost, place) * 8, 0, 100)
   const noiseScore = clamp(100 - place.noise * ghost.anxiety, 0, 100)
   const humidityTarget = hasCondition(ghost, 'likes_damp') ? 80 : 45
   const humidityScore = clamp(100 - Math.abs(place.humidity - humidityTarget) * 1.5, 0, 100)
-  const rawScore = Math.round(tempScore * 0.3 + noiseScore * 0.4 + humidityScore * 0.3)
+  const rawScore = Math.round(
+    tempScore * SCORE_WEIGHTS.temp +
+      noiseScore * SCORE_WEIGHTS.noise +
+      humidityScore * SCORE_WEIGHTS.humidity,
+  )
 
   const warnings: string[] = []
   let penalty = 0
@@ -100,7 +107,10 @@ function scorePlace(ghost: Ghost, place: Place): { score: number; breakdown: Bre
   }
 
   const score = clamp(rawScore + penalty, 0, 100)
-  return { score, breakdown: { tempScore, noiseScore, humidityScore, penalty, warnings } }
+  return {
+    score,
+    breakdown: { tempScore, noiseScore, humidityScore, humidityTarget, penalty, warnings },
+  }
 }
 
 export function evaluate(ghost: Ghost, place: Place, occupancy: number, now: Date): Evaluation {

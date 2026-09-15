@@ -28,27 +28,42 @@ export function ApplicationsTab({
   )
 
   return (
-    <ul className="ghost-list">
-      {sortedGhosts.map((ghost) => {
-        const occupancyExcludingSelf = tallyOccupancy(
-          places,
-          effectiveAssignments.filter((a) => a.ghost.id !== ghost.id),
-        )
-        const candidates = rankCandidates(ghost, places, occupancyExcludingSelf, now)
-        const effectivePlace = effectiveAssignments.find((a) => a.ghost.id === ghost.id)?.place
+    <>
+      <p className="ordering-note">
+        Заявки упорядочены по срочности: чем раньше дедлайн, тем раньше очередь на
+        распределение — так же, как их обрабатывает алгоритм.
+      </p>
+      <details className="score-explainer">
+        <summary>Как считается балл</summary>
+        <p>
+          Сначала жёсткие условия исключают часть мест полностью — например, отсутствие чердака
+          или просроченный дедлайн. Из оставшихся подходящих мест каждое получает балл от 0 до
+          100 за комфорт: температуру, шум и влажность. Побеждает подходящее место с наибольшим
+          баллом.
+        </p>
+      </details>
+      <ul className="ghost-list">
+        {sortedGhosts.map((ghost) => {
+          const occupancyExcludingSelf = tallyOccupancy(
+            places,
+            effectiveAssignments.filter((a) => a.ghost.id !== ghost.id),
+          )
+          const candidates = rankCandidates(ghost, places, occupancyExcludingSelf, now)
+          const effectivePlace = effectiveAssignments.find((a) => a.ghost.id === ghost.id)?.place
 
-        return (
-          <GhostRow
-            key={ghost.id}
-            ghost={ghost}
-            places={places}
-            candidates={candidates}
-            effectivePlaceId={effectivePlace?.id}
-            isOverridden={ghost.id in overrides}
-            onOverride={(placeId) => onOverride(ghost.id, placeId)}
-          />
-        )
-      })}
-    </ul>
+          return (
+            <GhostRow
+              key={ghost.id}
+              ghost={ghost}
+              candidates={candidates}
+              effectivePlaceId={effectivePlace?.id}
+              isOverridden={ghost.id in overrides}
+              onOverride={(placeId) => onOverride(ghost.id, placeId)}
+              now={now}
+            />
+          )
+        })}
+      </ul>
+    </>
   )
 }

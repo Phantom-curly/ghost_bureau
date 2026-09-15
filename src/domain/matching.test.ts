@@ -6,6 +6,7 @@ import {
   globalViolations,
   occupantsByPlace,
   rankCandidates,
+  SCORE_WEIGHTS,
   tallyOccupancy,
 } from './matching'
 import { ghosts as seedGhosts } from '../data/ghosts'
@@ -212,6 +213,7 @@ describe('evaluate — soft score formula', () => {
     const result = evaluate(ghost, place, 0, NOW)
     if (!result.eligible) throw new Error('expected eligible')
     expect(result.breakdown.humidityScore).toBe(85)
+    expect(result.breakdown.humidityTarget).toBe(45)
   })
 
   it('targets humidity 80 when the ghost likes damp', () => {
@@ -220,6 +222,12 @@ describe('evaluate — soft score formula', () => {
     const result = evaluate(ghost, place, 0, NOW)
     if (!result.eligible) throw new Error('expected eligible')
     expect(result.breakdown.humidityScore).toBe(85)
+    expect(result.breakdown.humidityTarget).toBe(80)
+  })
+
+  it('exposes the score weights as named constants that sum to 1', () => {
+    expect(SCORE_WEIGHTS).toEqual({ temp: 0.3, noise: 0.4, humidity: 0.3 })
+    expect(SCORE_WEIGHTS.temp + SCORE_WEIGHTS.noise + SCORE_WEIGHTS.humidity).toBe(1)
   })
 
   it('combines the three components with weights 0.3/0.4/0.3', () => {
