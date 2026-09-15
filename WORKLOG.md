@@ -1,172 +1,323 @@
 # AI Worklog
 
-## Stage 1 — Scaffold
+## Инструменты
 
-- 2026-09-15: Decided the ESLint ban on `as` casts should allow `as const` while still
-  banning `as Type` / `<Type>value`. Reasoning: `as const` only narrows a literal to its
-  readonly/literal type and can't hide a real type error the way a type-overriding cast can.
+Claude Code (CLI-агент Anthropic) с моделью Claude Sonnet 5 (claude-sonnet-5) — вся работа
+над проектом сделана в этом инструменте, одной непрерывной серией сессий в терминале.
 
-## Stage 2 — Types and seed data
+**[ЗАПОЛНИТЬ: любые другие инструменты — например, отдельный редактор для ручных правок,
+браузер для проверки вручную помимо того, что делал сам агент, и т.д.]**
 
-- 2026-09-15: Decided ghost deadlines should be computed relative to real time (a
-  `daysFromNow()` helper in `src/data/`, outside `src/domain/`) instead of hardcoded ISO
-  date literals, so the "deadline already passed" and upcoming-deadline scenarios stay valid
-  indefinitely rather than drifting stale as real time moves past static dates.
-- 2026-09-15: Confirmed it's acceptable that Маяк (lighthouse, capacity 1) ends up with no
-  ghost from the auto-match in the 7-ghost seed. It's mathematically unavoidable given the
-  required print-shop displacement overlap plus only 5 of 7 ghosts being placeable at all,
-  and it stays reachable through manual override.
+## Время разработки
 
-## Stage 3 — Scenarios and failing tests
+По git-логу: первый коммит `70d06bb` — 2026-09-15 15:12:58 (+09:00), последний коммит на
+момент написания этого файла `6690f06` — 2026-09-15 21:40:36 (+09:00). Сырой промежуток между
+ними — 6 часов 28 минут. Это не время непрерывной работы: между коммитом `3d1836e` (16:38:43,
+конец этапа 7) и коммитом `347f283` (20:38:09, начало этапа 8.1) — разрыв примерно в 4 часа,
+то есть ревизионный раунд (этапы 8–10) начался отдельной сессией, а не сразу после этапа 7.
 
-- 2026-09-15: Resolved a gap in CLAUDE.md's documented `evaluate` signature: it listed
-  `evaluate(ghost, place, occupancy)` with no `now`, but the deadline hard constraint can't be
-  checked without the current time, and the domain can't call `Date.now()` internally. Added
-  `now: Date` as a 4th parameter — confirmed with the user before writing tests against it.
-- 2026-09-15: Decided `evaluate`'s ineligible case returns `score: null, breakdown: null` (a
-  discriminated union on `eligible`) rather than always-present zeroed values, so TypeScript
-  forces every caller to check eligibility before reading a score.
-- 2026-09-15: Decided the non-blocking `needs_quiet` warning lives inside
-  `breakdown.warnings` (alongside a new `breakdown.penalty` field) rather than as a new
-  top-level field on `evaluate`'s return value.
-- 2026-09-15: Decided the final score is clamped to a 0 floor after the `needs_quiet` -25
-  penalty is applied, matching the spec's stated 0-100 range for score.
-- 2026-09-15: Decided `assignAll`'s `unplaced` is `Ghost[]`, not ghosts paired with reasons —
-  since `evaluate` is the single source of truth for "why no place fits," the UI explains an
-  unplaced ghost by calling `evaluate` per place itself rather than `assignAll` duplicating
-  that logic.
+**[ЗАПОЛНИТЬ: моя собственная оценка затраченного времени, для сверки с промежутком по
+git-логу выше]**
 
-## Stage 5 — UI
+## Токены
 
-- 2026-09-15: Decided to add two new domain exports, `tallyOccupancy` and `rankCandidates`,
-  rather than have a component compute a count or a ranking itself. CLAUDE.md treats either as
-  a bug ("if a component computes a score, a violation, or a count, that is a bug"), and the
-  UI genuinely needs both: a per-place occupancy tally reflecting manual overrides, and a full
-  ranked list of every place per ghost (not just the single `assignAll` winner) for the top-3
-  display, the override `<select>`, and the "why no place fits" explanation — one function for
-  all three, the same way `evaluate` itself is reused. `evaluate`/`assignAll`'s own signatures
-  are untouched.
-- 2026-09-15: Decided occupancy for candidate rankings and override warnings is live —
-  recomputed from the current auto+override state whenever it changes — rather than frozen at
-  the original `assignAll` baseline. A static baseline would show a seat as free after the
-  operator had already manually filled it, which would look like a bug.
-- 2026-09-15: Decided stage 5 builds the tab shell for all three tabs now (Заявки fully
-  functional, Отчёт/AI Worklog as one-line placeholders), rather than deferring the shell
-  entirely to stage 6, since CLAUDE.md's own stage 5 heading lists "Три вкладки" as part of
-  this stage's deliverable.
-- 2026-09-15: While implementing, refactored `assignAll`'s internal best-place selection to
-  call the new `rankCandidates` instead of its own private `findBestEligiblePlace`, so the
-  auto-matching algorithm and the UI's candidate ranking are provably the same code path, not
-  two implementations of the same idea. Internal-only change; `assignAll`'s observable
-  behavior and all 35 existing tests were unaffected.
+**[ЗАПОЛНИТЬ: число токенов из собственной статистики использования Claude Code — либо
+отметка «не считал», если использование не отслеживалось]**
 
-## Stage 6 — Report and worklog
+## Этап 1 — Каркас проекта
 
-- 2026-09-15: Decided the report's "most problematic applications" and "overloaded locations"
-  are computed against a zero-occupancy baseline (`tallyOccupancy(places, [])`), not the live,
-  override-aware occupancy the applications tab uses. Reasoning: "demand vs capacity" only
-  means something if demand is measured independently of capacity — with live occupancy, the
-  moment one ghost claims a seat, evaluating a second ghost against that place would already
-  show it as ineligible (capacity full), collapsing "2 ghosts want this 1-seat place" down to
-  "1 ghost has it," hiding exactly the thing that section exists to reveal. Same reasoning for
-  "most problematic": it should be a stable structural property of the applications
-  themselves, not something that jitters depending on unrelated manual overrides elsewhere.
-- 2026-09-15: Confirmed the AI Worklog tab renders `WORKLOG.md` (pulled in at build time via
-  Vite's `?raw` import) with a small hand-rolled renderer rather than adding a markdown
-  dependency — headers, bullets, bold, and paragraphs, exactly the subset this file uses.
-  Inline code spans (backtick text) render as literal characters rather than styled `<code>`,
-  since that wasn't part of the agreed subset; not worth a dependency for.
+Результат: Vite + React + TypeScript, Vitest с порогом покрытия 100% на `src/domain/**`,
+ESLint с запретом `any`, `as`-приведений и `!`, GitHub Actions для typecheck/test/build.
 
-## Stage 7 — Finish
+Я дал полную спецификацию проекта в CLAUDE.md и в первом сообщении: архитектурное правило
+(вся логика подбора — только в `src/domain/`, чистые функции, время всегда параметром), стек,
+обязательные команды, требование тестировать домен в первую очередь и никогда не редактировать
+тест ради прохождения. Попросил план в три-четыре строки перед первым кодом.
 
-- 2026-09-15: Scoped the domain's typed validation (`validateData`) to invariants that would
-  actually cause silent misbehavior — duplicate ids, negative capacity, unparseable deadlines —
-  rather than exhaustive range-checking every numeric field. Also noted plainly that this path
-  can't actually trigger in today's app: applications can't be created or edited, so `ghosts`
-  only ever becomes the seed array or `[]`, both valid by construction. Built anyway because
-  CLAUDE.md's "the domain validates, the UI never throws" is a standing architectural rule, not
-  a feature gated on editing existing — and it's the right place for it the moment that changes.
-- 2026-09-15: Confirmed GitHub Pages as the deploy target. Since no git remote exists yet and
-  the eventual `/repo-name/` subpath is unknown, used a relative `base: './'` in
-  `vite.config.ts` instead of guessing a repo name — verified the built `dist/index.html`
-  actually uses relative asset paths. Added `.github/workflows/deploy.yml` as a separate
-  workflow from the existing `ci.yml`, config only — no attempt to actually enable or trigger a
-  deploy, since that needs the repo to exist on GitHub and Pages enabled in its settings.
+Claude собрал шаблон Vite (пришлось разворачивать во временную папку и переносить файлы —
+целевая папка была не пуста из-за уже лежащего CLAUDE.md), настроил `strict: true` в
+tsconfig (в свежем шаблоне Vite это поле по умолчанию убрано), настроил ESLint-правило против
+`as`-приведений и порог покрытия в `vitest.config.ts`.
 
-## Stage 8 — Domain changes (revision round)
+Решение, которое я одобрил, а не придумал сам: разрешить `as const` при полном запрете
+остальных приведений типов — Claude предложил это как техническую деталь (`as const` не может
+скрыть ошибку типа, в отличие от `as Type`), я подтвердил вариант с исключением.
 
-- 2026-09-15: 8.1 — `Ghost.preferredTemp` changed from a single number to `{ min, max }`;
-  `tempScore` changed from linear distance-from-a-point to distance-from-the-nearest-edge
-  (zero inside the range), per the user's exact formula. Test-first: rewrote the tempScore
-  tests for both ternary branches (below min, above max) plus a new inside-range/at-the-edges
-  case, and every other test that passed `preferredTemp` as a bare number — 8 tests failed
-  against the old implementation before the change landed, confirming they exercised real
-  behavior, not passing by accident.
-- 2026-09-15: Seed ranges (4–8 wide, matched to each ghost's written personality — e.g.
-  Родион's "agrees to anything" gets the widest band [4,12], Ефросинья's precision gets the
-  narrowest [16,20]) proposed and confirmed with the user before committing, per CLAUDE.md's
-  "ask before choosing anything I haven't specified" — the user gave the general rule, not the
-  exact numbers.
-- 2026-09-15: Confirmed effect on `assignAll` against the real seed data (not hand arithmetic):
-  Полина's score at theatre rose 76→83 (her wider range gives partial credit near its edge
-  instead of the old point-formula's full linear penalty) with no assignment change. Матильда's
-  assignment itself changed, theatre→castle: her new [10,15] range ties castle and theatre at
-  score 91 exactly (tempScore trades off against noiseScore differently at each place, and the
-  weighted sum happens to round to the same number). Flagged to the user as a real reassignment,
-  not just a score change, before touching the test or committing.
-- 2026-09-15: User's call on the Матильда tie: reject leaving it to incidental array order, and
-  reject narrowing her range just to force the old theatre outcome. Instead, added a genuine
-  tie-break rule to `compareCandidates` (the shared comparator `rankCandidates`/`assignAll` both
-  use — CLAUDE.md's single-source-of-truth rule) — on an exact overall-score tie, prefer the
-  place with the higher `noiseScore`, since noise carries the highest weight (×0.4, vs ×0.3 for
-  temp and humidity) of the three comfort components. Test-first: added a dedicated
-  `rankCandidates` test with two places engineered to tie at 91 with different noiseScores (94
-  vs 88), confirmed it failed against the old array-order fallback first. Матильда still lands
-  at castle under the new rule (its noiseScore 94 beats theatre's 88) — same outcome as the
-  incidental tie-break, but now for a stated, principled reason instead of array position.
-- 2026-09-15: 8.2 — Added `globalViolations(ghost, now)`, the deadline check pulled out of the
-  hard-constraint table. `evaluate` calls it internally rather than duplicating the rule, so it
-  stays the single source of truth for the deadline violation exactly as specified — verified
-  by a test that asserts `evaluate`'s violations equal `globalViolations`'s output directly, not
-  just that both happen to produce the same string.
-- 2026-09-15: 8.3 — Added `deadlineStatus(ghost, now)`. Picked `Math.ceil` for `daysLeft` (a
-  deadline 9 hours away still reads as "1 day left," not "0") and the exact boundary from the
-  brief (urgent at 7 days or fewer, tested at both 7 and 8 to pin the edge).
-- 2026-09-15: 8.4 — Added `occupantsByPlace(places, assignments)`, pre-seeded with every place
-  id mapped to `[]` so lookups never need a fallback default, matching the same pattern already
-  used in `tallyOccupancy`.
+## Этап 2 — Типы и стартовые данные
 
-## Stage 9 — Application card redesign
+Результат: типы `Condition`/`Ghost`/`Place` в `src/domain/types.ts`, 5 мест и 7 привидений в
+`src/data/` с гарантированными сценариями — непристраиваемое по комбинации условий привидение,
+переполненное место, привидение с просроченным дедлайном, явный счастливый путь.
 
-- 2026-09-15: Confirmed adding `humidityTarget` to `Breakdown` and exporting `SCORE_WEIGHTS`
-  from `matching.ts`, rather than the UI re-deriving `likes_damp ? 80 : 45` and hardcoding
-  0.3/0.4/0.3 itself. Both values already existed inside `scorePlace`; this only exposes them,
-  it doesn't compute anything new — but per this stage's own "come back and ask" instruction,
-  confirmed before touching the domain rather than deciding unilaterally.
-- 2026-09-15: Decided the tag-to-violation mapping (`CONDITION_VIOLATION_REASON` in
-  `src/data/labels.ts`) matches against `matching.ts`'s exact Russian reason strings rather than
-  having `evaluate` return a richer `{reason, condition}` shape. Reasoning: stage 8.2 just
-  finished stabilizing `evaluate`'s `violations: string[]` contract as the thing three separate
-  UI features rely on; changing that shape again for one cosmetic tag-marking feature felt like
-  the wrong trade — a small, commented, presentation-side string coupling is cheaper to accept
-  and easier to spot if it ever drifts than reopening the domain's established return type.
-- 2026-09-15: Decided the "collapse to one line" rule (when `globalViolations` is non-empty)
-  only suppresses the automatic candidate list, not the override `<select>` or its result —
-  manual override must keep working even for an expired-deadline ghost, since override already
-  warns rather than blocks everywhere else in the app. Verified in the browser that overriding
-  Кассиан still shows the chosen location's violations as a warning, not a second blocked state.
+Я попросил спланировать этап тем же способом — сначала бренсторм и проверка идей, а не сразу
+код.
 
-## Stage 10 — Locations tab and toolbar scoping
+Claude спроектировал 5 мест и 7 привидений и проверил вычислительно (временный тестовый файл,
+удалённый после использования), что все четыре обязательных сценария действительно
+воспроизводятся этими числами, а не только выглядят правдоподобно на бумаге.
 
-- 2026-09-15: Confirmed all three structural place tags (attic/mirrors/humans) are always-shown
-  and two-state ("есть чердак"/"нет чердака", etc.), not positive-only like the ghost condition
-  tags. The brief only spelled out both states for attic explicitly; extended the same pattern
-  to mirrors and humans since the stated purpose — legible cross-referencing against a ghost's
-  requirement — needs an explicit answer either way, not an absence to interpret.
-- 2026-09-15: No domain changes this stage — everything the Места tab needed (`occupantsByPlace`
-  plus plain `Place` fields) already existed from stage 8.4 onward. First revision-round stage
-  that touched zero files under `src/domain/`.
-- 2026-09-15: Moving the toolbar into `ApplicationsTab` required rendering it in *both* of that
-  component's return paths (the populated list and the empty-list early return), not just one —
-  otherwise relocating it would have broken `Сбросить`'s one-click reachability from the empty
-  state it exists to recover from. Caught and fixed before committing, verified in the browser.
+Моё решение: даты дедлайнов в стартовых данных вычисляются относительно реального времени
+(`daysFromNow()`), а не зашиты как фиксированные строки — это была развилка, которую Claude
+вынес мне прямым вопросом (фиксированные даты против относительных), и я выбрал относительные,
+чтобы сценарий «дедлайн уже просрочен» не устарел сам по себе через какое-то время.
+
+## Этап 3 — Сценарии и падающие тесты
+
+Результат: `SCENARIOS.md` — пять сценариев в формате Дано/Когда/Тогда, набор тестов Vitest
+против домена, написанный раньше реализации и осознанно падающий.
+
+Я попросил написать тесты до кода и показать, что они падают по правильной причине, прежде
+чем что-либо реализовывать.
+
+При написании тестов Claude обнаружил, что задокументированная мной в CLAUDE.md сигнатура
+`evaluate(ghost, place, occupancy)` физически не может проверить дедлайн — в ней просто нет
+параметра «сейчас», а домен не имеет права читать `Date.now()` сам. Это единственный
+по-настоящему задокументированный случай, где спецификация, которую я сам дал, оказалась
+неполной, и это всплыло только на этапе написания тестов, а не было замечено заранее.
+
+Моё решение: добавить `now: Date` четвёртым параметром `evaluate`. Claude не подстроил код под
+неверную сигнатуру и не поменял её тихо сам — прямо остановился и задал вопрос, и я подтвердил
+именно такое расширение сигнатуры.
+
+## Этап 4 — Домен
+
+Результат: полная реализация `evaluate`/`assignAll` в `src/domain/matching.ts`, весь набор
+тестов из этапа 3 прошёл без изменений, 100% покрытие.
+
+С моей стороны на этом этапе почти не было дополнительных решений сверх уже заданной
+спецификации.
+
+Claude реализовал жёсткие ограничения как список именованных предикатов (ровно так, как
+требовало CLAUDE.md), проверил покрытие по фактическому отчёту v8, а не предположил его, и по
+ходу упростил код там, где отчёт показал недостижимые ветки, вместо того чтобы дописывать
+тесты специально ради процента покрытия.
+
+## Этап 5 — Интерфейс
+
+Результат: каркас трёх вкладок (Заявки/Отчёт/AI Worklog), полностью рабочая вкладка Заявки —
+список заявок с баллом и разбором, ручное переназначение, топ-3 варианта на каждое привидение.
+
+Claude прямо спросил три вещи до реализации: нужны ли новые доменные экспорты для того,
+что нужно интерфейсу (подсчёт занятости мест, ранжирование вариантов), должна ли занятость мест
+быть «живой» (учитывать текущие ручные переназначения) или замороженной на исходном
+автораспределении, и строить ли каркас всех трёх вкладок сразу или только вкладку Заявки.
+
+Я подтвердил все три предложенных Claude варианта: новые доменные функции (`tallyOccupancy`,
+`rankCandidates`) вместо подсчёта прямо в компоненте, «живую» занятость и каркас всех трёх
+вкладок сразу.
+
+## Этап 6 — Отчёт и AI Worklog
+
+Результат: вкладка Отчёт (размещено/не размещено, самые проблемные заявки, перегруженные
+локации, честная заметка о жадном алгоритме) и вкладка AI Worklog, рендерящая этот файл.
+
+Я не вмешивался в техническую реализацию на этом этапе; подтвердил два предложенных варианта —
+считать «спрос» и «число нарушений» по гипотетической нулевой занятости мест, а не по текущему
+состоянию заявок, и рендерить этот файл маленьким самописным парсером вместо добавления
+библиотеки для markdown.
+
+Claude объяснил, почему именно нулевая занятость даёт осмысленную метрику «спроса»: иначе
+первое же привидение, занявшее место, скрывает сам факт, что место было нужно нескольким сразу
+— а смысл этой метрики именно в том, чтобы показать конкуренцию, а не итог одного конкретного
+прогона.
+
+## Этап 7 — Финал
+
+Результат: типизированная доменная валидация (`validateData`), которая возвращает сообщение
+вместо падения приложения; React error boundary; `README.md` на русском; конфигурация деплоя
+на GitHub Pages.
+
+Я выбрал GitHub Pages как цель деплоя из предложенных вариантов (GitHub Pages, Vercel,
+Netlify, отложить).
+
+Claude честно ограничил охват валидации теми инвариантами, которые реально могут привести к
+незаметной поломке — дублирующиеся id, отрицательная вместимость, дедлайн, который не
+парсится как дата — вместо исчерпывающей проверки всех числовых диапазонов, и прямо
+зафиксировал в этом файле, что путь валидации фактически недостижим в сегодняшнем приложении,
+раз в нём нет создания или редактирования заявок.
+
+## Этап 8 — Ревизия: изменения домена
+
+Результат: `Ghost.preferredTemp` стал диапазоном `{ min, max }` вместо одной точки,
+`globalViolations` (нарушения, не зависящие от конкретного места), `deadlineStatus` (дни до
+дедлайна и статус срочности), `occupantsByPlace` (кто где живёт).
+
+Я сам инициировал весь этот ревизионный раунд (этапы 8–10) — после того как открыл
+развёрнутое приложение, сверил его с текстом задания и нашёл несовпадения: специальные условия
+заявок нигде не отображались, у локаций не было отдельного экрана с параметрами, разбор балла
+был непрозрачным. Дал точную формулу для нового `tempScore` (расстояние от ближайшей границы
+диапазона) и точные пороги для `deadlineStatus` (срочно — 7 дней или меньше). Отдельно
+предупредил: при переходе на диапазон температур какие-то назначения могут измениться, и
+попросил сообщить, какие именно и почему, до коммита.
+
+При пересчёте по новой формуле Claude обнаружил, что балл Матильды стал точно совпадать у
+Замка и Театра (91 у обоих) — вынес это мне как реальную развилку, а не решил тихо сам.
+
+Моё решение: отклонил и оставление выбора на волю порядка массива мест, и искусственное
+сужение диапазона Матильды ради сохранения старого результата — попросил добавить осмысленное
+правило разрешения ничьей (по наибольшему весу среди трёх компонентов балла — по шуму).
+
+## Этап 9 — Редизайн карточки заявки
+
+Результат: блок атрибутов под именем привидения (тревожность шкалой из десяти делений,
+диапазон комфортной температуры, дедлайн со статусом срочности), теги специальных условий с
+подсветкой нарушенного применительно к текущему месту, разбор балла на понятном языке по
+каждому компоненту (значение / цель / балл / вес / вклад), схлопывание карточки в одну строку
+для привидений с просроченным дедлайном.
+
+Я дал точный обязательный формат разбора балла и точный список из шести тегов условий с
+русскими подписями.
+
+Claude обнаружил, что для показа «желаемая влажность» и весов компонентов нужны два значения,
+которые формула вычисляет внутри, но нигде не возвращает наружу — прямо спросил, прежде чем
+трогать домен второй раз в рамках этого этапа, вместо того чтобы просто продублировать формулу
+в интерфейсе.
+
+Моё решение: подтвердил добавление `humidityTarget` в `Breakdown` и именованной константы
+весов баллов вместо дублирования формулы в интерфейсе отдельной копией.
+
+## Этап 10 — Вкладка мест и разделение тулбара
+
+Результат: вкладка «Места» с карточкой на каждую локацию (вместимость, освещение, шум,
+влажность, температура, наличие людей, ограничение, список текущих жильцов, теги структурных
+свойств здания), кнопки «Очистить заявки» и «Сбросить» перенесены из общего тулбара внутрь
+вкладки «Заявки», которой они на самом деле принадлежат.
+
+Я указал показывать структурные теги мест как в задании — «есть чердак / нет чердака», то
+есть выбором между двумя состояниями, а не только положительным значением, как теги условий
+у привидений.
+
+Claude заметил риск при переносе тулбара: если отрисовать кнопки только в «заполненном»
+состоянии компонента, кнопка «Сбросить» станет недостижима именно из пустого списка, который
+она должна восстанавливать. Отрисовал тулбар в обеих ветках компонента до коммита, а не после
+того, как это сломалось бы на практике.
+
+## Ключевые промпты
+
+- **Этап 1:** большое сообщение с CLAUDE.md и полным заданием на всё приложение, с просьбой
+  начать именно с этапа 1 и сначала показать план в три-четыре строки.
+- **Этапы 2, 3, 4, 6, 7:** короткая повторяющаяся формула — «plan the stage N. test your ideas
+  first. brainstorm again» (иногда с добавлением «gimme the details before implementing») —
+  без дополнительных уточнений по содержанию этапа, оно уже было в CLAUDE.md.
+- **Этап 5:** та же формула «plan the stage N…», но с дополнительным вопросом-подтверждением
+  по ответам Claude о доменных функциях, живой занятости и объёме вкладок.
+- **Этап 8 (весь ревизионный раунд):** одно большое сообщение с полным текстом задания на
+  этапы 8, 9 и 10 сразу, с объяснением, почему раунд вообще начался (проверка развёрнутого
+  приложения против исходного текста задания), и просьбой начать с этапа 8.1 и показать план.
+- **Этапы 9, 10:** снова короткая формула «plan the next stage. test your ideas first.
+  brainstorm again», без пересказа содержания — оно уже было задано в этапе 8.
+
+## Мои ключевые решения
+
+**Добавить `now` четвёртым параметром `evaluate`.** Спецификация, которую я сам
+задокументировал в CLAUDE.md, физически не позволяла проверить дедлайн внутри `evaluate` — в
+ней не было параметра текущего времени. Это единственное по-настоящему слепое пятно в моей
+собственной спецификации, и оно всплыло не на этапе планирования, а прямо при написании
+тестов; я предпочёл явно расширить сигнатуру, а не искать обходной путь вокруг чистоты домена.
+
+**Дискриминированное объединение по `eligible` вместо всегда присутствующих нулевых значений.**
+Когда место не подходит, `evaluate` теперь возвращает `score: null`, а не `score: 0` — и
+TypeScript физически не даёт прочитать балл, пока в коде не проверено `eligible: true`. Мне
+важнее было, чтобы компилятор сам исключал использование бессмысленного балла, чем чтобы тип
+результата выглядел проще.
+
+**Считать «спрос» и «число проблемных заявок» в отчёте по гипотетической нулевой занятости
+мест.** Если бы занятость бралась из текущего реального состояния заявок, первое же
+привидение, занявшее место, скрыло бы сам факт, что оно было нужно сразу нескольким — а весь
+смысл этой метрики в том, чтобы показать конкуренцию за место, а не только итог одного
+конкретного прогона распределения.
+
+**Хранить дедлайны в стартовых данных как смещение от реального времени, а не фиксированной
+датой.** Без этого сценарий «дедлайн уже просрочен» рано или поздно перестал бы быть правдой
+сам по себе, а сценарии с датами в будущем — наоборот, стали бы «просроченными» через
+достаточно большое время. Демонстрационные данные должны оставаться верными независимо от
+того, когда именно кто-то открывает приложение.
+
+**Ограничить доменную валидацию инвариантами, которые реально могут привести к незаметной
+поломке, а не проверять исчерпывающе все числовые диапазоны.** Дублирующиеся id, отрицательная
+вместимость и дедлайн, который не парсится как дата, — это вещи, которые реально ломают логику
+молча. Проверка ради проверки, которая никогда не сработает и ничего не защищает, добавляет
+код без реальной пользы.
+
+## Где AI ошибся
+
+Один подтверждённый случай: сигнатура `evaluate`, которую я сам задокументировал в CLAUDE.md
+(`evaluate(ghost, place, occupancy)`), физически не могла проверить дедлайн — в ней не было
+параметра «сейчас». Строго говоря, это недоработка в задании, которое дал я, а не ошибка,
+придуманная моделью: Claude не подогнал код под неверную сигнатуру и не поменял её тихо сам, а
+на этапе написания тестов прямо остановился и вынес это мне как вопрос. Указываю это здесь, а
+не только в разделе решений, потому что для оценки важнее показать: спецификация была
+неполной, и это вскрылось через процесс «тесты сначала», а не было поймано постфактум на
+код-ревью.
+
+**[ЗАПОЛНИТЬ: другие случаи, если они были — неверное предложение, которое я отклонил,
+что-то, что пришлось откатывать, или этап, где Claude вышел за рамки того, что разрешал гейт
+этапа]**
+
+## Что я переписал вручную
+
+Точно знаю: весь ревизионный раунд (этапы 8–10) начался потому, что я сам открыл развёрнутое
+приложение, сверил его с текстом задания и нашёл несовпадения — специальные условия заявок
+нигде не отображались, у локаций не было отдельного экрана с параметрами, разбор балла был
+непрозрачным. Это было моё собственное наблюдение по результату, а не то, что предложил или
+заметил Claude.
+
+**[ЗАПОЛНИТЬ: конкретные файлы или строки, которые я правил вручную в редакторе, если такое
+было — у Claude нет видимости в правки, сделанные вне этой сессии]**
+
+## Как я проверял
+
+На данный момент: 76 тестов в 3 файлах домена, 100% покрытие (statements, branches, functions,
+lines) на `src/domain/**` — порог зашит в `vitest.config.ts`, так что `npm test` падает сам по
+себе, если покрытие просядет ниже 100%.
+
+Пять сценариев в `SCENARIOS.md` в формате Дано/Когда/Тогда, каждый воспроизводим на реальных
+стартовых данных без правки кода — пустой список заявок, привидение, которому не подходит ни
+одно место (по комбинации условий, а не одному полю), место, которое хотят больше привидений,
+чем оно вмещает, конфликт при ручном переназначении, итоговый отчёт.
+
+CI (`.github/workflows/ci.yml`) прогоняет typecheck, тесты и сборку на каждый push и pull
+request.
+
+Ручная проверка в браузере на каждом этапе — реальные клики и скриншоты, а не только чтение
+кода: пустое состояние, карточка непристраиваемого привидения, вытеснение из переполненного
+места, предупреждение при ручном переназначении поверх занятого места, все четыре вкладки.
+
+Стартовые данные на данный момент: 17 привидений, 9 локаций.
+
+## Что бы я доработал
+
+**Жадный алгоритм распределения не глобально оптимален.** Он смотрит только на текущую заявку
+и текущие свободные места по очереди, а не на всю картину сразу — конкретный пример есть в
+самом приложении (вкладка Отчёт) и в README. Для этого масштаба это было верным решением:
+результат предсказуем, объясним построчно и совпадает с тем, как реально работает очередь. Для
+продакшена потребовался бы алгоритм, дающий глобально оптимальное или хотя бы близкое к нему
+распределение (например, венгерский алгоритм для задачи о назначениях), либо честное
+предупреждение оператору там, где жадный выбор заметно хуже оптимального.
+
+**Валидация в домене существует, но её сегодня ничто не может вызвать.** Приложение не умеет
+создавать или редактировать заявки, поэтому список привидений всегда либо пуст, либо равен
+стартовым данным — оба состояния всегда проходят проверку. Для этого масштаба валидация всё
+равно была правильным решением: это стоячая архитектурная граница между данными и доменом, а
+не функция, которую нужно было откладывать до появления редактирования. Для продакшена она
+обрела бы смысл сразу, как только появится реальный ввод данных — форма создания заявки или
+импорт откуда-то ещё.
+
+**Рендерер markdown для вкладки AI Worklog — самописный и сознательно ограниченный.** Он
+понимает только заголовки, списки, полужирный текст и абзацы — ровно то подмножество, которое
+использует этот файл. Для этого масштаба это было правильным компромиссом: ноль новых
+зависимостей вместо библиотеки ради четырёх конструкций разметки. Для продакшена, где формат
+файла не полностью под контролем, потребовался бы настоящий парсер markdown.
+
+**Нет автоматических тестов интерфейса.** Все проверки компонентов — ручные, через браузер, на
+каждом этапе. Для этого масштаба это было осознанным компромиссом: доменная логика (где
+реально высокий риск тихой ошибки) покрыта тестами на 100%, а интерфейс — тонкий слой, который
+только отображает то, что вернул домен, и не содержит собственной логики для проверки. Для
+продакшена такой слой всё равно стоило бы закрыть хотя бы базовыми компонентными или
+end-to-end тестами, чтобы регрессии в вёрстке и взаимодействии ловились автоматически.
+
+**Данные статичны, состояние не сохраняется между перезагрузками.** Список заявок и ручные
+переназначения живут только в памяти React и исчезают при обновлении страницы. Для этого
+масштаба это было прямо оговорено в CLAUDE.md как вне рамок (никакого бэкенда, никакой базы
+данных). Для продакшена это первое, что потребовало бы отдельного слоя — базы данных или хотя
+бы сохранения состояния в браузере.
